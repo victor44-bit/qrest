@@ -1,0 +1,94 @@
+# paste the new code, save (Ctrl+O, Enter) and exit (Ctrl+X)
+
+# 2) rebuild and restart
+cd /var/www/qrest
+npm run build
+pm2 restart qrest
+// app/api/uploads/route.ts
+import { NextResponse } from "next/server";
+import { imagekit } from "@/lib/imagekit"; // 👈 import your ImageKit client
+import { randomUUID } from "crypto";
+import { extname } from "path";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+/** Limits */
+const MAX_FILES = 6;
+const MAX_FILE_MB = 8;
+const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
+
+/** Allowed types */
+const ALLOWED_MIMES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/gif",
+  "image/webp",
+]);
+const ALLOWED_EXTS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp"]);
+
+const isAllowed = (name: string, type?: string | null) => {
+  const ext = extname(name || "").toLowerCase();
+  if (!ALLOWED_EXTS.has(ext)) return false;
+  if (type && !ALLOWED_MIMES.has(type.toLowerCase())) return false;
+  return true;
+};
+
+export async function POST(req: Request) {
+  try {
+    const form = await req.formData();
+
+    // Accept both "files" (multiple) and "file" (single)
+    const files: File[] = [...form.getAll("files"), ...form.getAll("file")].filter(
+      (f): f is File => typeof File !== "undefined" && f instanceof File
+    );
+
+    if (!files.length) {
+      return NextResponse.json({ error: "No files" }, { status: 400 });
+    }
+    if (files.length > MAX_FILES) {
+      return NextResponse.json({ error: `Too many files (max ${MAX_FILES})` }, { status: 400 });
+    }
+
+    const urls: string[] = [];
+
+    for (const f of files) {
+      const size = f.size ?? 0;
+      const type = (f as any).type as string | undefined;
+      const name = f.name || "upload";
+
+      if (size <= 0) return NextResponse.json({ error: `Empty file: ${name}` }, { status: 400 });
+      if (size > MAX_FILE_BYTES) {
+        return NextResponse.json(
+          { error: `File too large: ${name} (max ${MAX_FILE_MB}MB)` },
+          { status: 400 }
+        );
+      }
+      if (!isAllowed(name, type)) {
+        return NextResponse.json({ error: `Unsupported file type: ${name}` }, { status: 400 });
+      }
+
+      const ext = extname(name || "").toLowerCase() || ".bin";
+      const filename = `${randomUUID()}${ext}`;
+
+      // Convert File to base64 for ImageKit
+      const buffer = Buffer.from(await f.arrayBuffer());
+      const base64String = buffer.toString("base64");
+
+      // Upload to ImageKit
+      const uploadRes = await imagekit.upload({
+        file: base64String, // required
+        fileName: filename,
+        folder: "/uploads", // optional: organize in ImageKit
+      });
+
+      urls.push(uploadRes.url);
+    }
+
+    return NextResponse.json({ urls }, { status: 201 });
+  } catch (e) {
+    console.error("UPLOAD ERROR:", e);
+    return NextResponse.json({ error: "upload-failed" }, { status: 500 });
+  }
+}

@@ -2,8 +2,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import MindMap from "@/components/MindMap";
 import ThemeToggle from "@/components/ThemeToggle";
-import { useState } from "react";
-
 /* =========================
    Types & utils
    ========================= */
@@ -1078,24 +1076,12 @@ function FeedView({
   onOpen: (id: string) => void;
   onLike: (id: string) => void;
 }) {
-  // Track which items are expanded
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-
-  const toggleExpand = (id: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  };
-
   if (loading)
     return (
       <div className="px-2 py-8 text-center text-neutral-500 dark:text-neutral-300">
         Loading {scope === "mine" ? "my chains" : "feed"}…
       </div>
     );
-
   if (!chains.length)
     return (
       <div className="px-2 py-8 text-center text-neutral-500 dark:text-neutral-300">
@@ -1109,32 +1095,22 @@ function FeedView({
         </div>
       </div>
     );
-
   return (
     <div className="space-y-6">
       {chains.map((c) => {
         const id = getAnyId(c);
         const cover = Array.isArray(c.images) && c.images.length > 0 ? c.images[0] : null;
-
-        // Heuristic to decide if we should show "See more"
-        const titleText = (c.title || "").trim();
-        const isLong =
-          titleText.length > 200 || titleText.split(/\r?\n/).length > 5;
-
-        const isExpanded = expandedIds.has(id);
-
         return (
           <article key={id} className="pb-4 border-b dark:border-dark-border relative">
             {/* Red line from profile to bottom */}
-            <div
+            <div 
               className="absolute left-[22px] top-0 bottom-0 w-0.5 bg-red-500 z-0 pointer-events-none"
-              style={{
-                clipPath: cover
-                  ? "polygon(0 0, 100% 0, 100% calc(100% - 60px), 0 calc(100% - 60px))"
-                  : "none",
+              style={{ 
+                clipPath: cover 
+                  ? 'polygon(0 0, 100% 0, 100% calc(100% - 60px), 0 calc(100% - 60px))' 
+                  : 'none'
               }}
             />
-
             <div className="px-2 flex items-start gap-3 relative z-10">
               {/* Profile avatar */}
               <div className="flex-shrink-0">
@@ -1142,7 +1118,6 @@ function FeedView({
                   {c.authorName?.charAt(0).toUpperCase() || "A"}
                 </div>
               </div>
-
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
                   <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
@@ -1152,33 +1127,9 @@ function FeedView({
                     {timeAgo(c.createdAt)}
                   </span>
                 </div>
-
-                {/* Title with clamp */}
-                <div className="mt-1">
-                  <h3
-                    className={[
-                      "text-base font-semibold leading-snug break-words",
-                      !isExpanded && isLong ? "line-clamp-5" : "",
-                    ].join(" ")}
-                  >
-                    {c.title}
-                  </h3>
-
-                  {/* See more / See less */}
-                  {isLong && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleExpand(id);
-                      }}
-                      className="mt-1 text-xs text-neutral-600 dark:text-neutral-400 hover:underline"
-                    >
-                      {isExpanded ? "See less" : "See more"}
-                    </button>
-                  )}
-                </div>
-
-                {/* Tags */}
+                <h3 className="text-base font-semibold leading-snug break-words mt-1">
+                  {c.title}
+                </h3>
                 <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-neutral-500 dark:text-neutral-400">
                   {c.tags.slice(0, 3).map((t) => (
                     <span key={t} className="text-neutral-600 dark:text-neutral-300">
@@ -1189,8 +1140,6 @@ function FeedView({
                 </div>
               </div>
             </div>
-
-            {/* Cover image */}
             {cover && (
               <div className="w-full mt-2 px-2 relative z-20">
                 <img
@@ -1200,8 +1149,6 @@ function FeedView({
                 />
               </div>
             )}
-
-            {/* Stats / like */}
             <div className="mt-2 px-2 flex justify-between items-center text-[12px] text-neutral-500 dark:text-neutral-400 relative z-10">
               <div>
                 {c.contributions} contribs • {formatCount((c as any).views ?? 0)} views
@@ -1219,8 +1166,6 @@ function FeedView({
                 </span>
               </div>
             </div>
-
-            {/* Open / Share */}
             <div className="mt-2 px-2 flex items-center gap-2 relative z-10">
               <button
                 onClick={() => onOpen(id)}
@@ -1247,7 +1192,9 @@ function FeedView({
                   let success = false;
                   try {
                     success = document.execCommand("copy");
-                  } catch {}
+                  } catch (err) {
+                    // ignore
+                  }
                   document.body.removeChild(textArea);
                   const btn = e.currentTarget as HTMLButtonElement;
                   const original = btn.innerHTML;
