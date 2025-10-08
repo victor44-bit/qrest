@@ -1,0 +1,23 @@
+// app-wide middleware (restricted to /admin only)
+import { NextResponse, type NextRequest } from "next/server";
+
+export function middleware(req: NextRequest) {
+  const { pathname, origin } = req.nextUrl;
+
+  // Only guard /admin routes
+  if (pathname.startsWith("/admin")) {
+    const isAdmin = req.cookies.get("qrest_admin")?.value === "1";
+    if (!isAdmin && !pathname.startsWith("/admin/login")) {
+      const url = new URL("/admin/login", origin);
+      return NextResponse.redirect(url);
+    }
+  }
+
+  // Pass through everything else (including /_next/static, images, etc.)
+  return NextResponse.next();
+}
+
+// 🔒 CRUCIAL: Do NOT match _next or public assets
+export const config = {
+  matcher: ["/admin/:path*"],
+};

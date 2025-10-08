@@ -1,0 +1,23 @@
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  darkMode: "class",
+  content: [
+    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        "dark-bg": "#15202B",
+        "dark-card": "#192734",
+        "dark-border": "#253341",
+      },
+    },
+  },
+  // Ensure any line-clamp classes we use don't get purged (e.g. 4 or 5 lines)
+  safelist: [
+    { pattern: /line-clamp-(\d+)/ },
+  ],
+  plugins: [], // since v3.3 line-clamp utilities are built in
+};

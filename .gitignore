@@ -1,0 +1,12 @@
+node_modules/
+.next/
+out/
+dist/
+.cache/
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+public/uploads/
+uploads/

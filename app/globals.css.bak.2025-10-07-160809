@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Optional base styles */
+:root {
+  color-scheme: light dark;
+}
+
+html, body { height: 100%; }
+
+/* Light mode */
+body {
+  @apply bg-neutral-50 text-neutral-900 antialiased transition-colors duration-300;
+}
+
+/* Dark mode */
+.dark body {
+  @apply bg-dark-bg text-neutral-100;
+}
+
+/* === util: multi-line clamp without plugin === */
+.clamp-4{
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+}
+/* --- multi-line clamp fallback used by FeedView titles --- */
+.clamp-4 {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ==== Fallback multi-line clamp (independent of Tailwind) ==== */
+.clamped-4{
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:4;
+  overflow:hidden;
+}
+.clamped-5{
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:5;
+  overflow:hidden;
+}
+
+/* ==== Fallback multi-line clamp (works without Tailwind plugins) ==== */
+.clamped-4{
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:4;
+  overflow:hidden;
+}
+.clamped-5{
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:5;
+  overflow:hidden;
+}
+
+/* ==== Fallback multi-line clamp (no plugin needed) ==== */
+.clamped-4{
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:4;
+  overflow:hidden;
+}
+.clamped-5{
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:5;
+  overflow:hidden;
+}

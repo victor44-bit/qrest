@@ -1,0 +1,71 @@
+name: Deploy on push to main
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Pack artifact
+        run: |
+          tar -czf artifact.tgz \
+            .next \
+            package.json package-lock.json \
+            public \
+            next.config.js \
+            app components lib pages middleware.ts tailwind.config.* postcss.config.* || true
+
+      - name: Upload artifact via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          source: "artifact.tgz"
+          target: "${{ vars.PROJECT_DIR || '/var/www/qrest' }}/upload/"
+
+      - name: Activate release on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -e
+            BASE="${PROJECT_DIR:-/var/www/qrest}"
+            REL="$(date +%Y%m%d-%H%M%S)"
+            mkdir -p "$BASE/releases/$REL"
+            tar -xzf "$BASE/upload/artifact.tgz" -C "$BASE/releases/$REL"
+
+            cd "$BASE/releases/$REL"
+            npm ci --omit=dev
+
+            ln -sfn "$BASE/shared/.env" ./.env
+
+            ln -sfn "$BASE/releases/$REL" "$BASE/current"
+
+            cd "$BASE/current"
+            if pm2 describe qrest >/dev/null 2>&1; then
+              pm2 restart qrest
+            else
+              pm2 start "node_modules/.bin/next" --name qrest -- start -p 3000
+            fi
+            pm2 save

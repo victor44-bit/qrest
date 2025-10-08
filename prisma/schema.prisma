@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  email         String         @unique
+  password      String
+  createdAt     DateTime       @default(now())
+  chains        Chain[]        @relation("UserChains")
+  contributions Contribution[] @relation("UserContribs")
+}
+
+model Chain {
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  title         String
+  tags          String[]
+  likes         Int            @default(0)
+  views         Int            @default(0)
+  createdAt     DateTime       @default(now())
+  bumpedAt      DateTime       @default(now())   // ← bump on likes/new activity
+
+  images        String[]       @default([])
+
+  authorId      String?        @db.ObjectId
+  author        User?          @relation("UserChains", fields: [authorId], references: [id])
+
+  contributions Contribution[]
+
+  @@index([authorId])
+  @@index([views])
+  @@index([bumpedAt, createdAt])  // ← for sorting by recent activity
+}
+
+model Contribution {
+  id         String         @id @default(auto()) @map("_id") @db.ObjectId
+  text       String
+  images     String[]       @default([])
+  likes      Int            @default(0)
+  createdAt  DateTime       @default(now())
+
+  authorId   String?        @db.ObjectId
+  author     User?          @relation("UserContribs", fields: [authorId], references: [id])
+
+  chainId    String         @db.ObjectId
+  chain      Chain          @relation(fields: [chainId], references: [id])
+
+  parentId   String?        @db.ObjectId
+  parent     Contribution?  @relation("ContribTree", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children   Contribution[] @relation("ContribTree")
+
+  @@index([chainId])
+  @@index([parentId])
+  @@index([authorId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  token     String   @unique
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  used      Boolean  @default(false)
+
+  @@index([userId])
+}

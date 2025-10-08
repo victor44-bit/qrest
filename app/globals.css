@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Keep browser default dark-aware widgets */
+:root { color-scheme: light dark; }
+
+html, body { height: 100%; }
+
+/* Put @apply rules in the base layer so Tailwind processes them reliably */
+@layer base {
+  body {
+    @apply bg-neutral-50 text-neutral-900 antialiased transition-colors duration-300;
+  }
+  .dark body {
+    @apply bg-dark-bg text-neutral-100;
+  }
+}
