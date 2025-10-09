@@ -4,6 +4,17 @@ jobs:
   ssh:
     runs-on: ubuntu-latest
     steps:
+      - name: Diagnostics (are secrets set?)
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_KEY:  ${{ secrets.SSH_KEY }}
+        run: |
+          echo "HOST len: ${#SSH_HOST}"
+          echo "USER len: ${#SSH_USER}"
+          echo "PORT val: ${SSH_PORT:-<empty>}"
+          echo "KEY  len: ${#SSH_KEY}"
       - name: Add host to known_hosts (defaults to 22)
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -22,4 +33,3 @@ jobs:
             whoami
             hostname
             ls -la /var/www/qrest
-Thu 09 Oct 2025 06:34:50 AM CEST
