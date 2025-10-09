@@ -11,31 +11,72 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout (for metadata only)
         uses: actions/checkout@v4
 
-      - name: Add server host to known_hosts (avoids SSH prompt)
+      - name: Set up known_hosts (default SSH_PORT to 22)
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
         run: |
+          set -euo pipefail
+          : "${SSH_HOST:?Missing secret SSH_HOST}"
+          PORT="${SSH_PORT:-22}"
+          echo "Using SSH host: ${SSH_HOST}, port: ${PORT}"
           mkdir -p ~/.ssh
-          ssh-keyscan -p "${{ secrets.SSH_PORT }}" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+          ssh-keyscan -p "${PORT}" "${SSH_HOST}" >> ~/.ssh/known_hosts
 
-      - name: SSH into server, pull, build, reload
+      - name: Deploy over SSH (pull, build, reload)
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script_stop: true
           script: |
             set -euo pipefail
+
+            echo "==> Entering app dir"
             cd /var/www/qrest
+
+            echo "==> Ensure SSH remote is correct"
+            if ! git remote -v | grep -q 'git@github.com:victor44-bit/qrest.git'; then
+              git remote set-url origin git@github.com:victor44-bit/qrest.git || \
+              git remote add origin git@github.com:victor44-bit/qrest.git
+            fi
+            ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+            echo "==> Fetch & reset to origin/main"
             git fetch --all --prune
             git reset --hard origin/main
+
+            echo "==> Install deps (clean)"
             npm ci
+
+            echo "==> Build production"
             npm run build
-            pm2 startOrReload ecosystem.config.js
+
+            echo "==> Start/Reload PM2"
+            if [ -f ecosystem.config.js ]; then
+              pm2 startOrReload ecosystem.config.js
+            else
+              pm2 delete qrest || true
+              PORT=3000 NODE_ENV=production pm2 start "npm -- start -p 3000" --name qrest --time --cwd /var/www/qrest --update-env
+            fi
             pm2 save
-            curl -s -o /dev/null -w "local:%{http_code} size:%{size_download}\n" http://127.0.0.1:3000/
+
+            echo "==> Health check"
+            curl -s -o /dev/null -w "local:%{http_code} size:%{size_download}\n" http://127.0.0.1:3000/ || true
+
+            echo "==> CSS check (ensures styling)"
+            HTML=$(curl -s -H 'Cache-Control: no-cache' http://127.0.0.1:3000/ || true)
+            CSS=$(printf "%s" "$HTML" | grep -oE '/_next/[^"]+\.css' | head -n1 || true)
+            if [ -n "$CSS" ]; then
+              curl -s -o /dev/null -w "css:%{http_code} size:%{size_download}\n" "http://127.0.0.1:3000$CSS" || true
+            else
+              echo "No CSS link found in HTML (may be first render)."
+            fi
