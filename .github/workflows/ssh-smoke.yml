@@ -4,14 +4,11 @@ jobs:
   ssh:
     runs-on: ubuntu-latest
     steps:
-      - name: known_hosts (defaults port to 22)
+      - name: Add host to known_hosts (defaults to 22)
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
         run: |
-          set -e
-          echo "HOST=${SSH_HOST:-<empty>}"
-          echo "PORT=${SSH_PORT:-22}"
           mkdir -p ~/.ssh
           ssh-keyscan -p "${SSH_PORT:-22}" "${SSH_HOST}" >> ~/.ssh/known_hosts
       - name: SSH in and list app dir
