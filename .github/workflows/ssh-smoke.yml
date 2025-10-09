@@ -15,7 +15,7 @@ jobs:
           echo "USER len: ${#SSH_USER}"
           echo "PORT val: ${SSH_PORT:-<empty>}"
           echo "KEY  len: ${#SSH_KEY}"
-      - name: Add host to known_hosts (defaults to 22)
+      - name: Add host to known_hosts
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
