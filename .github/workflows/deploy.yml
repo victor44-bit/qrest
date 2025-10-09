@@ -3,69 +3,39 @@ name: Deploy on push to main
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
-      - name: Checkout
+      - name: Checkout (for metadata only)
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install deps
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-
-      - name: Pack artifact
+      - name: Add server host to known_hosts (avoids SSH prompt)
         run: |
-          tar -czf artifact.tgz \
-            .next \
-            package.json package-lock.json \
-            public \
-            next.config.js \
-            app components lib pages middleware.ts tailwind.config.* postcss.config.* || true
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "${{ secrets.SSH_PORT }}" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
 
-      - name: Upload artifact via SCP
-        uses: appleboy/scp-action@v0.1.7
+      - name: SSH into server, pull, build, reload
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
-          source: "artifact.tgz"
-          target: "${{ vars.PROJECT_DIR || '/var/www/qrest' }}/upload/"
-
-      - name: Activate release on server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
           script: |
-            set -e
-            BASE="${PROJECT_DIR:-/var/www/qrest}"
-            REL="$(date +%Y%m%d-%H%M%S)"
-            mkdir -p "$BASE/releases/$REL"
-            tar -xzf "$BASE/upload/artifact.tgz" -C "$BASE/releases/$REL"
-
-            cd "$BASE/releases/$REL"
-            npm ci --omit=dev
-
-            ln -sfn "$BASE/shared/.env" ./.env
-
-            ln -sfn "$BASE/releases/$REL" "$BASE/current"
-
-            cd "$BASE/current"
-            if pm2 describe qrest >/dev/null 2>&1; then
-              pm2 restart qrest
-            else
-              pm2 start "node_modules/.bin/next" --name qrest -- start -p 3000
-            fi
+            set -euo pipefail
+            cd /var/www/qrest
+            git fetch --all --prune
+            git reset --hard origin/main
+            npm ci
+            npm run build
+            pm2 startOrReload ecosystem.config.js
             pm2 save
+            curl -s -o /dev/null -w "local:%{http_code} size:%{size_download}\n" http://127.0.0.1:3000/
