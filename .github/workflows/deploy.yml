@@ -17,12 +17,22 @@ jobs:
       - name: Checkout (for metadata only)
         uses: actions/checkout@v4
 
+      - name: Diagnose inputs
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+        run: |
+          echo HOST=${SSH_HOST:-<empty>}
+          echo USER=${SSH_USER:-<empty>}
+          echo PORT=${SSH_PORT:-22}
+
       - name: Set up known_hosts (default SSH_PORT to 22)
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
         run: |
-          set -euo pipefail
+          set -e
           : "${SSH_HOST:?Missing secret SSH_HOST}"
           PORT="${SSH_PORT:-22}"
           echo "Using SSH host: ${SSH_HOST}, port: ${PORT}"
@@ -38,7 +48,7 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           script_stop: true
           script: |
-            set -euo pipefail
+            set -e
 
             echo "==> Entering app dir"
             cd /var/www/qrest
