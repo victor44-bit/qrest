@@ -1,0 +1,23 @@
+name: SSH Raw Test
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write private key from secret
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_gha
+          chmod 600 ~/.ssh/id_gha
+      - name: Add host key
+        run: |
+          ssh-keyscan -p "${{ secrets.SSH_PORT || '22' }}" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+      - name: SSH smoke
+        env:
+          HOST: ${{ secrets.SSH_HOST }}
+          PORT: ${{ secrets.SSH_PORT }}
+          USER: ${{ secrets.SSH_USER }}
+        run: |
+          ssh -vvv -i ~/.ssh/id_gha -p "${PORT:-22}" "${USER}@${HOST}" 'echo connected && whoami && hostname'
